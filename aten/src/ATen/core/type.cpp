@@ -898,6 +898,7 @@ UnionTypePtr UnionType::create(std::vector<TypePtr> types) {
   return UnionTypePtr(std::move(union_type));
 }
 
+
 bool UnionType::operator==(const Type& rhs) const {
   if (auto union_rhs = rhs.cast<UnionType>()) {
     // We can't compare the type vectors for equality using `operator=`,
@@ -925,8 +926,9 @@ bool UnionType::operator==(const Type& rhs) const {
     return false;
   } else if (auto number_rhs = rhs.cast<NumberType>()) {
     return this->canHoldType(NumberType::get());
+  } else {
+    return false;
   }
-  return false;
 }
 
 
@@ -1161,6 +1163,25 @@ bool TupleType::isSubtypeOfExt(const TypePtr& rhs_, std::ostream* why_not) const
     return a->isSubtypeOfExt(b, why_not);
   });
 }
+
+  bool NumberType::operator==(const Type& rhs) const {
+    if (rhs.kind() == UnionType::Kind) {
+      auto union_lhs = UnionType::create({NumberType::get()});
+      auto union_rhs = rhs.expect<UnionType>();
+      return *union_lhs == *union_rhs;
+    }
+    return rhs.kind() == kind();
+  }
+
+  bool NumberType::isSubtypeOfExt(const TypePtr& rhs, std::ostream* why_not) const {
+   if (rhs->kind() == UnionType::Kind) {
+     auto union_rhs = rhs->expect<UnionType>();
+     return IntType::get()->isSubtypeOfExt(union_rhs, why_not)
+          && FloatType::get()->isSubtypeOfExt(union_rhs, why_not)
+          && ComplexType::get()->isSubtypeOfExt(union_rhs, why_not);
+   }
+   return Type::isSubtypeOfExt(rhs, why_not);
+  }
 
 bool ListType::isSubtypeOfExt(const TypePtr& rhs_, std::ostream* why_not) const {
   if (Type::isSubtypeOfExt(rhs_, why_not)) {
